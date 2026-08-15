@@ -28,8 +28,6 @@ template<typename IMakeRuntime>
 std::optional<std::shared_ptr<expr>>
 bounded_normalizer<IMakeRuntime>::normalize(std::shared_ptr<expr> term) {
     auto&& rt = make_runtime_.make(term);
-    if(rt.space_usage() > max_bytes_)
-        return std::nullopt;
     for (uint64_t steps = 0;
         (
             !rt.done() &&
