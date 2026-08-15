@@ -6,6 +6,7 @@
 #include "infrastructure/asex_germinator.hpp"
 #include "infrastructure/asex_reproducer.hpp"
 #include "infrastructure/asex_selector.hpp"
+#include "infrastructure/best_tracking_stepper.hpp"
 #include "infrastructure/bounded_normalizer.hpp"
 #include "infrastructure/church.hpp"
 #include "infrastructure/expr_factory.hpp"
@@ -18,7 +19,6 @@
 #include "infrastructure/population_initializer.hpp"
 #include "infrastructure/rc_pool.hpp"
 #include "infrastructure/recursor_applicator.hpp"
-#include "infrastructure/srf_asex_runtime.hpp"
 #include "infrastructure/srf_stepper.hpp"
 #include "infrastructure/uniform_rng.hpp"
 #include "infrastructure/y_combinator.hpp"
@@ -48,16 +48,14 @@ struct srf_asex_manifest {
     using initializer_t =
         population_initializer<population_t, population_t, population_t, producer_t>;
     using buffer_t = next_generation_buffer<asex_agent, population_t, population_t>;
-    using stepper_t =
+    using inner_stepper_t =
         srf_stepper<selector_t, reproducer_t, germinator_t, producer_t, buffer_t, buffer_t,
                     buffer_t>;
-    using runtime_t = srf_asex_runtime<initializer_t, stepper_t>;
+    using stepper_t = best_tracking_stepper<inner_stepper_t>;
 
     srf_asex_manifest(std::size_t n, std::size_t r, uint64_t max_steps, uint64_t max_bytes,
                       uint64_t sample_nodes, uint64_t seed, IEvaluate& evaluate);
-    runtime_t& get_runtime();
-    const population<asex_agent>& get_population() const;
-private:
+
     expr_nodes_t expr_nodes_;
     expr_nodes_t out_nodes_;
     expr_factory_t factory_;
@@ -76,8 +74,8 @@ private:
     reproducer_t reproducer_;
     initializer_t initializer_;
     buffer_t buffer_;
+    inner_stepper_t inner_stepper_;
     stepper_t stepper_;
-    runtime_t runtime_;
 };
 
 template<typename IEvaluate>
@@ -102,19 +100,9 @@ srf_asex_manifest<IEvaluate>::srf_asex_manifest(std::size_t n, std::size_t r, ui
     , reproducer_(rng_, r)
     , initializer_(population_, population_, population_, producer_)
     , buffer_(population_, population_, n)
-    , stepper_(selector_, reproducer_, germinator_, producer_, buffer_, buffer_, buffer_)
-    , runtime_(initializer_, stepper_) {
+    , inner_stepper_(selector_, reproducer_, germinator_, producer_, buffer_, buffer_, buffer_)
+    , stepper_(inner_stepper_) {
     DEBUG_ASSERT(r > 0);
-}
-
-template<typename IEvaluate>
-typename srf_asex_manifest<IEvaluate>::runtime_t& srf_asex_manifest<IEvaluate>::get_runtime() {
-    return runtime_;
-}
-
-template<typename IEvaluate>
-const population<asex_agent>& srf_asex_manifest<IEvaluate>::get_population() const {
-    return population_;
 }
 
 #endif
