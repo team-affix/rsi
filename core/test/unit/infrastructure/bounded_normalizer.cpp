@@ -53,3 +53,22 @@ TEST_F(BoundedNormalizerTest, NulloptWhenMaxBytesExceeded) {
     EXPECT_CALL(runtime, space_usage()).WillOnce(Return(101));
     EXPECT_EQ(normalizer.normalize(term), std::nullopt);
 }
+
+TEST_F(BoundedNormalizerTest, StepsThenReturnsOutput) {
+    EXPECT_CALL(make_runtime, make(term)).WillOnce(ReturnRef(runtime));
+    EXPECT_CALL(runtime, space_usage()).WillRepeatedly(Return(1));
+    EXPECT_CALL(runtime, done()).WillOnce(Return(false)).WillOnce(Return(true));
+    EXPECT_CALL(runtime, step()).Times(1);
+    EXPECT_CALL(runtime, output()).WillOnce(Return(out));
+    std::optional<std::shared_ptr<expr>> got = normalizer.normalize(term);
+    ASSERT_TRUE(got.has_value());
+    EXPECT_EQ(*got, out);
+}
+
+TEST_F(BoundedNormalizerTest, NulloptWhenMaxBytesExceededAfterStep) {
+    EXPECT_CALL(make_runtime, make(term)).WillOnce(ReturnRef(runtime));
+    EXPECT_CALL(runtime, space_usage()).WillOnce(Return(1)).WillOnce(Return(101));
+    EXPECT_CALL(runtime, done()).WillOnce(Return(false));
+    EXPECT_CALL(runtime, step()).Times(1);
+    EXPECT_EQ(normalizer.normalize(term), std::nullopt);
+}

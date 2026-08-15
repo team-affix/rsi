@@ -65,7 +65,7 @@ struct SrfAsexStepIntegrationTest : public ::testing::Test {
         , applicator(factory)
         , sampler(sample_uniform, factory, factory, factory, 2)
         , runtime_maker(out_nodes)
-        , normalizer(runtime_maker, 8, 100000)
+        , normalizer(runtime_maker, 64, 100000)
         , producer(sampler)
         , pop(4)
         , gen(encoder, ch, ch, y, applicator, normalizer)
@@ -125,4 +125,27 @@ TEST_F(SrfAsexStepIntegrationTest, OmegaLeavesHolesThenHoleFillRestoresN) {
     EXPECT_EQ(result.best_reward, 1.0);
     EXPECT_TRUE(exprs_eq(result.best_model.term, ch.make_false()));
     EXPECT_EQ(result.viable_seed_count, 0u);
+}
+
+TEST_F(SrfAsexStepIntegrationTest, FlagRecursorChildrenReplaceParents) {
+    EXPECT_CALL(sample_uniform, sample_uniform(256)).WillRepeatedly(Return(0));
+    ON_CALL(evaluate, evaluate).WillByDefault(Return(2.0));
+    recursor flag_recursor{factory.make_abs(factory.make_abs(
+        factory.make_abs(factory.make_abs(factory.make_var(3)))))};
+    asex_agent parent{flag_recursor, policy{ch.make_false()}};
+    pop.add(parent);
+    pop.add(parent);
+    pop.add(parent);
+    pop.add(parent);
+    step_result result = stepper.step();
+    EXPECT_EQ(pop.size(), 4u);
+    EXPECT_EQ(result.best_reward, 2.0);
+    EXPECT_TRUE(exprs_eq(result.best_model.term, ch.make_false()));
+    EXPECT_EQ(result.viable_seed_count, 4u);
+    EXPECT_FALSE(exprs_eq(pop.get(0).rec.term, flag_recursor.term));
+    EXPECT_TRUE(exprs_eq(pop.get(0).rec.term, ch.make_true()));
+    EXPECT_TRUE(exprs_eq(pop.get(0).pol.term, ch.make_false()));
+    EXPECT_TRUE(exprs_eq(pop.get(1).rec.term, ch.make_true()));
+    EXPECT_TRUE(exprs_eq(pop.get(2).rec.term, ch.make_true()));
+    EXPECT_TRUE(exprs_eq(pop.get(3).rec.term, ch.make_true()));
 }

@@ -106,12 +106,23 @@ TEST_F(AsexGerminatorTest, EncodesIndexAndRandForBothHalves) {
     EXPECT_EQ(child->pol.term, pol_nf);
 }
 
-TEST_F(AsexGerminatorTest, NulloptIfEitherNormalizeFails) {
+TEST_F(AsexGerminatorTest, NulloptIfRecNormalizeFails) {
     EXPECT_CALL(encode_uint, encode_uint(2)).WillOnce(Return(index));
     EXPECT_CALL(encode_uint, encode_uint(5)).WillOnce(Return(rand));
     EXPECT_CALL(apply_recursor, apply(rec, flag_t, y, index, rand)).WillOnce(Return(rec_app));
     EXPECT_CALL(apply_recursor, apply(rec, flag_f, y, index, rand)).WillOnce(Return(pol_app));
     EXPECT_CALL(normalize, normalize(rec_app)).WillOnce(Return(std::nullopt));
+    std::optional<asex_agent> child = gen->germinate(seed);
+    EXPECT_FALSE(child.has_value());
+}
+
+TEST_F(AsexGerminatorTest, NulloptIfPolNormalizeFails) {
+    EXPECT_CALL(encode_uint, encode_uint(2)).WillOnce(Return(index));
+    EXPECT_CALL(encode_uint, encode_uint(5)).WillOnce(Return(rand));
+    EXPECT_CALL(apply_recursor, apply(rec, flag_t, y, index, rand)).WillOnce(Return(rec_app));
+    EXPECT_CALL(apply_recursor, apply(rec, flag_f, y, index, rand)).WillOnce(Return(pol_app));
+    EXPECT_CALL(normalize, normalize(rec_app)).WillOnce(Return(rec_nf));
+    EXPECT_CALL(normalize, normalize(pol_app)).WillOnce(Return(std::nullopt));
     std::optional<asex_agent> child = gen->germinate(seed);
     EXPECT_FALSE(child.has_value());
 }
