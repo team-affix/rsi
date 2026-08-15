@@ -30,16 +30,14 @@ bounded_normalizer<IMakeRuntime>::normalize(std::shared_ptr<expr> term) {
     auto&& rt = make_runtime_.make(term);
     if(rt.space_usage() > max_bytes_)
         return std::nullopt;
-    uint64_t steps = 0;
-    while(!rt.done()) {
-        if(steps >= max_steps_)
-            return std::nullopt;
+    for (uint64_t steps = 0;
+        (
+            !rt.done() &&
+            steps < max_steps_ &&
+            rt.space_usage() < max_bytes_
+        ); ++steps)
         rt.step();
-        ++steps;
-        if(rt.space_usage() > max_bytes_)
-            return std::nullopt;
-    }
-    return rt.output();
+    return rt.done() ? std::make_optional(rt.output()) : std::nullopt;
 }
 
 #endif
