@@ -13,21 +13,23 @@ struct MockEvaluate {
 struct SrfAsexRuntimeIntegrationTest : public ::testing::Test {
     using manifest_t = srf_asex_manifest<MockEvaluate>;
     SrfAsexRuntimeIntegrationTest()
-        : manifest(4, 2, 2, 8, 100000, 2, 3, 1, evaluate) {
+        : manifest(4, 2, 8, 100000, 2, 1, evaluate) {
     }
     NiceMock<MockEvaluate> evaluate;
     manifest_t manifest;
 };
 
 TEST_F(SrfAsexRuntimeIntegrationTest, StartsEmpty) {
-    EXPECT_TRUE(manifest.get_population().agents.empty());
-    EXPECT_EQ(manifest.get_population().capacity, 4u);
+    EXPECT_EQ(manifest.get_population().size(), 0u);
+    EXPECT_EQ(manifest.get_population().capacity(), 4u);
 }
 
-TEST_F(SrfAsexRuntimeIntegrationTest, TwoStepsReachAndKeepN) {
+TEST_F(SrfAsexRuntimeIntegrationTest, InitializeThenStepsKeepN) {
     ON_CALL(evaluate, evaluate).WillByDefault(Return(0.0));
+    manifest.get_runtime().initialize();
+    EXPECT_EQ(manifest.get_population().size(), 4u);
     manifest.get_runtime().step();
-    EXPECT_EQ(manifest.get_population().agents.size(), 4u);
+    EXPECT_EQ(manifest.get_population().size(), 4u);
     manifest.get_runtime().step();
-    EXPECT_EQ(manifest.get_population().agents.size(), 4u);
+    EXPECT_EQ(manifest.get_population().size(), 4u);
 }

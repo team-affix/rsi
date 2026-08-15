@@ -1,44 +1,60 @@
 #ifndef SRF_STEPPER_HPP
 #define SRF_STEPPER_HPP
 
-#include "value_objects/population.hpp"
-
-template<typename Agent, typename ReproductionContext, typename ISelect, typename IReproduce,
-         typename IProduceInitialAgent>
+template<typename ISelect, typename IReproduce, typename IGerminate, typename IProduceInitialAgent,
+         typename IAddToBuffer, typename IAtCapacity, typename ICommitBuffer>
 struct srf_stepper {
-    srf_stepper(ISelect& select, IReproduce& reproduce,
-                IProduceInitialAgent& produce_initial_agent);
-    population<Agent> step(const population<Agent>& in);
+    srf_stepper(ISelect& select, IReproduce& reproduce, IGerminate& germinate,
+                IProduceInitialAgent& produce_initial_agent, IAddToBuffer& add_to_buffer,
+                IAtCapacity& at_capacity, ICommitBuffer& commit_buffer);
+    void step();
 private:
     ISelect& select_;
     IReproduce& reproduce_;
+    IGerminate& germinate_;
     IProduceInitialAgent& produce_initial_agent_;
+    IAddToBuffer& add_to_buffer_;
+    IAtCapacity& at_capacity_;
+    ICommitBuffer& commit_buffer_;
 };
 
-template<typename Agent, typename ReproductionContext, typename ISelect, typename IReproduce,
-         typename IProduceInitialAgent>
-srf_stepper<Agent, ReproductionContext, ISelect, IReproduce, IProduceInitialAgent>::srf_stepper(
-    ISelect& select, IReproduce& reproduce, IProduceInitialAgent& produce_initial_agent)
+template<typename ISelect, typename IReproduce, typename IGerminate, typename IProduceInitialAgent,
+         typename IAddToBuffer, typename IAtCapacity, typename ICommitBuffer>
+srf_stepper<ISelect, IReproduce, IGerminate, IProduceInitialAgent, IAddToBuffer, IAtCapacity,
+            ICommitBuffer>::srf_stepper(ISelect& select, IReproduce& reproduce,
+                                        IGerminate& germinate,
+                                        IProduceInitialAgent& produce_initial_agent,
+                                        IAddToBuffer& add_to_buffer, IAtCapacity& at_capacity,
+                                        ICommitBuffer& commit_buffer)
     : select_(select)
     , reproduce_(reproduce)
-    , produce_initial_agent_(produce_initial_agent) {
+    , germinate_(germinate)
+    , produce_initial_agent_(produce_initial_agent)
+    , add_to_buffer_(add_to_buffer)
+    , at_capacity_(at_capacity)
+    , commit_buffer_(commit_buffer) {
 }
 
-template<typename Agent, typename ReproductionContext, typename ISelect, typename IReproduce,
-         typename IProduceInitialAgent>
-population<Agent>
-srf_stepper<Agent, ReproductionContext, ISelect, IReproduce, IProduceInitialAgent>::step(
-    const population<Agent>& in) {
-    auto contexts = select_.select(in);
-    population<Agent> out{in.capacity};
-    for(const ReproductionContext& ctx : contexts) {
-        auto children = reproduce_.reproduce(ctx);
-        for(const Agent& child : children)
-            out.agents.push_back(child);
+template<typename ISelect, typename IReproduce, typename IGerminate, typename IProduceInitialAgent,
+         typename IAddToBuffer, typename IAtCapacity, typename ICommitBuffer>
+void srf_stepper<ISelect, IReproduce, IGerminate, IProduceInitialAgent, IAddToBuffer, IAtCapacity,
+                 ICommitBuffer>::step() {
+    auto progenitors = select_.select();
+    for(const auto& progenitor : progenitors) {
+        if(at_capacity_.at_capacity())
+            break;
+        auto seeds = reproduce_.reproduce(progenitor);
+        for(const auto& seed : seeds) {
+            if(at_capacity_.at_capacity())
+                break;
+            auto child = germinate_.germinate(seed);
+            if(child.has_value())
+                add_to_buffer_.add(*child);
+        }
     }
-    while(out.agents.size() < out.capacity)
-        out.agents.push_back(produce_initial_agent_.produce());
-    return out;
+    while(!at_capacity_.at_capacity())
+        add_to_buffer_.add(produce_initial_agent_.produce());
+    commit_buffer_.commit();
 }
 
 #endif

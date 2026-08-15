@@ -28,8 +28,8 @@ struct RecursorApplyNormalizeIntegrationTest : public ::testing::Test {
         , applicator(factory)
         , runtime_maker(out_nodes)
         , normalizer(runtime_maker, 64, 100000)
-        , flag_recursor{factory.make_abs(
-              factory.make_abs(factory.make_abs(factory.make_var(2))))} {
+        , flag_recursor{factory.make_abs(factory.make_abs(
+              factory.make_abs(factory.make_abs(factory.make_var(3)))))} {
     }
     nodes_t expr_nodes;
     nodes_t out_nodes;
@@ -44,7 +44,8 @@ struct RecursorApplyNormalizeIntegrationTest : public ::testing::Test {
 
 TEST_F(RecursorApplyNormalizeIntegrationTest, FlagRecursorTrueReducesToTrue) {
     std::shared_ptr<expr> applied =
-        applicator.apply(flag_recursor, ch.make_true(), y.make_combinator(), ch.make_false());
+        applicator.apply(flag_recursor, ch.make_true(), y.make_combinator(), ch.make_false(),
+                         ch.make_false());
     std::optional<std::shared_ptr<expr>> nf = normalizer.normalize(applied);
     ASSERT_TRUE(nf.has_value());
     EXPECT_TRUE(exprs_eq(*nf, ch.make_true()));
@@ -52,7 +53,8 @@ TEST_F(RecursorApplyNormalizeIntegrationTest, FlagRecursorTrueReducesToTrue) {
 
 TEST_F(RecursorApplyNormalizeIntegrationTest, FlagRecursorFalseReducesToFalse) {
     std::shared_ptr<expr> applied =
-        applicator.apply(flag_recursor, ch.make_false(), y.make_combinator(), ch.make_true());
+        applicator.apply(flag_recursor, ch.make_false(), y.make_combinator(), ch.make_true(),
+                         ch.make_true());
     std::optional<std::shared_ptr<expr>> nf = normalizer.normalize(applied);
     ASSERT_TRUE(nf.has_value());
     EXPECT_TRUE(exprs_eq(*nf, ch.make_false()));

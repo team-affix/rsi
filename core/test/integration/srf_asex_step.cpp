@@ -1,25 +1,26 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "infrastructure/asex_child_generator.hpp"
+#include "infrastructure/asex_germinator.hpp"
 #include "infrastructure/asex_reproducer.hpp"
 #include "infrastructure/asex_selector.hpp"
 #include "infrastructure/bounded_normalizer.hpp"
 #include "infrastructure/church.hpp"
 #include "infrastructure/expr_factory.hpp"
-#include "infrastructure/gap_fill.hpp"
 #include "infrastructure/initial_agent_producer.hpp"
 #include "infrastructure/lc_runtime_maker.hpp"
 #include "infrastructure/le_bitstring_encoder.hpp"
+#include "infrastructure/next_generation_buffer.hpp"
 #include "infrastructure/nf_sampler.hpp"
+#include "infrastructure/population.hpp"
+#include "infrastructure/population_initializer.hpp"
 #include "infrastructure/rc_pool.hpp"
 #include "infrastructure/recursor_applicator.hpp"
 #include "infrastructure/srf_stepper.hpp"
 #include "infrastructure/y_combinator.hpp"
 #include "value_objects/asex_agent.hpp"
-#include "value_objects/asex_reproduction_context.hpp"
 #include "value_objects/expr.hpp"
 #include "value_objects/policy.hpp"
-#include "value_objects/population.hpp"
+#include "value_objects/recursor.hpp"
 
 using ::testing::NiceMock;
 using ::testing::Return;
@@ -42,13 +43,16 @@ struct SrfAsexStepIntegrationTest : public ::testing::Test {
     using sampler_t = nf_sampler<MockSampleUniform, factory_t, factory_t, factory_t>;
     using normalizer_t = bounded_normalizer<lc_runtime_maker>;
     using producer_t = initial_agent_producer<sampler_t>;
+    using population_t = population<asex_agent>;
     using gen_t =
-        asex_child_generator<MockSampleUniform, encoder_t, church_t, church_t, y_t, applicator_t,
-                             normalizer_t>;
-    using reproducer_t = asex_reproducer<gen_t>;
-    using selector_t = asex_selector<MockEvaluate>;
+        asex_germinator<encoder_t, church_t, church_t, y_t, applicator_t, normalizer_t>;
+    using selector_t = asex_selector<population_t, population_t, MockEvaluate>;
+    using reproducer_t = asex_reproducer<MockSampleUniform>;
+    using initializer_t =
+        population_initializer<population_t, population_t, population_t, producer_t>;
+    using buffer_t = next_generation_buffer<asex_agent, population_t, population_t>;
     using stepper_t =
-        srf_stepper<asex_agent, asex_reproduction_context, selector_t, reproducer_t, producer_t>;
+        srf_stepper<selector_t, reproducer_t, gen_t, producer_t, buffer_t, buffer_t, buffer_t>;
     SrfAsexStepIntegrationTest()
         : expr_nodes()
         , out_nodes()
@@ -61,11 +65,13 @@ struct SrfAsexStepIntegrationTest : public ::testing::Test {
         , runtime_maker(out_nodes)
         , normalizer(runtime_maker, 8, 100000)
         , producer(sampler)
-        , gen(sample_uniform, encoder, ch, ch, y, applicator, normalizer, 3)
-        , reproducer(gen, 2, 2)
-        , selector(evaluate, 2)
-        , stepper(selector, reproducer, producer)
-        , pop(4) {
+        , pop(4)
+        , gen(encoder, ch, ch, y, applicator, normalizer)
+        , selector(pop, pop, evaluate, 2)
+        , reproducer(sample_uniform, 2)
+        , initializer(pop, pop, pop, producer)
+        , buffer(pop, pop, 4)
+        , stepper(selector, reproducer, gen, producer, buffer, buffer, buffer) {
     }
     NiceMock<MockEvaluate> evaluate;
     NiceMock<MockSampleUniform> sample_uniform;
@@ -80,26 +86,38 @@ struct SrfAsexStepIntegrationTest : public ::testing::Test {
     lc_runtime_maker runtime_maker;
     normalizer_t normalizer;
     producer_t producer;
+    population_t pop;
     gen_t gen;
-    reproducer_t reproducer;
     selector_t selector;
+    reproducer_t reproducer;
+    initializer_t initializer;
+    buffer_t buffer;
     stepper_t stepper;
-    population<asex_agent> pop;
 };
 
-TEST_F(SrfAsexStepIntegrationTest, EmptyInReachesN) {
+TEST_F(SrfAsexStepIntegrationTest, InitializeThenStepKeepsN) {
     EXPECT_CALL(sample_uniform, sample_uniform(1)).WillRepeatedly(Return(0));
+    EXPECT_CALL(sample_uniform, sample_uniform(256)).WillRepeatedly(Return(0));
     ON_CALL(evaluate, evaluate).WillByDefault(Return(0.0));
-    population<asex_agent> out = stepper.step(pop);
-    EXPECT_EQ(out.agents.size(), 4u);
+    EXPECT_EQ(pop.size(), 0u);
+    initializer.initialize();
+    EXPECT_EQ(pop.size(), 4u);
+    stepper.step();
+    EXPECT_EQ(pop.size(), 4u);
 }
 
-TEST_F(SrfAsexStepIntegrationTest, SecondStepDropsParentsAndRestoresN) {
+TEST_F(SrfAsexStepIntegrationTest, OmegaLeavesHolesThenHoleFillRestoresN) {
     EXPECT_CALL(sample_uniform, sample_uniform(1)).WillRepeatedly(Return(0));
-    EXPECT_CALL(sample_uniform, sample_uniform(8)).WillRepeatedly(Return(0));
+    EXPECT_CALL(sample_uniform, sample_uniform(256)).WillRepeatedly(Return(0));
     ON_CALL(evaluate, evaluate).WillByDefault(Return(1.0));
-    population<asex_agent> first = stepper.step(pop);
-    ASSERT_EQ(first.agents.size(), 4u);
-    population<asex_agent> second = stepper.step(first);
-    EXPECT_EQ(second.agents.size(), 4u);
+    std::shared_ptr<expr> xx =
+        factory.make_abs(factory.make_app(factory.make_var(0), factory.make_var(0)));
+    recursor omega{factory.make_app(xx, xx)};
+    asex_agent omega_agent{omega, policy{ch.make_false()}};
+    pop.add(omega_agent);
+    pop.add(omega_agent);
+    pop.add(omega_agent);
+    pop.add(omega_agent);
+    stepper.step();
+    EXPECT_EQ(pop.size(), 4u);
 }

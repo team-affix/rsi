@@ -1,44 +1,37 @@
 #include <memory>
-#include <optional>
 #include <vector>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "infrastructure/asex_reproducer.hpp"
 #include "value_objects/asex_agent.hpp"
-#include "value_objects/asex_reproduction_context.hpp"
+#include "value_objects/asex_progenitor.hpp"
+#include "value_objects/asex_seed.hpp"
 #include "value_objects/expr.hpp"
 
 using ::testing::NiceMock;
 using ::testing::Return;
 
-struct MockGenerateChild {
-    MOCK_METHOD((std::optional<asex_agent>), generate, (const recursor&));
+struct MockSampleUniform {
+    MOCK_METHOD(uint64_t, sample_uniform, (uint64_t));
 };
 
-using test_reproducer_t = asex_reproducer<MockGenerateChild>;
+using test_reproducer_t = asex_reproducer<MockSampleUniform>;
 
 struct AsexReproducerTest : public ::testing::Test {
-    NiceMock<MockGenerateChild> generate_child;
-    test_reproducer_t reproducer{generate_child, 2, 3};
+    NiceMock<MockSampleUniform> sample_uniform;
+    test_reproducer_t reproducer{sample_uniform, 2};
     std::shared_ptr<expr> t = std::make_shared<expr>(expr{expr::var{0}});
-    asex_agent agent{recursor{t}, policy{t}};
-    asex_reproduction_context ctx{agent};
+    asex_progenitor progenitor{asex_agent{recursor{t}, policy{t}}};
 };
 
-TEST_F(AsexReproducerTest, ProducesUpToRChildren) {
-    EXPECT_CALL(generate_child, generate)
-        .WillOnce(Return(agent))
-        .WillOnce(Return(agent));
-    std::vector<asex_agent> kids = reproducer.reproduce(ctx);
-    EXPECT_EQ(kids.size(), 2u);
-}
-
-TEST_F(AsexReproducerTest, SharedRetryBudgetKeepsBornKids) {
-    EXPECT_CALL(generate_child, generate)
-        .WillOnce(Return(agent))
-        .WillOnce(Return(std::nullopt))
-        .WillOnce(Return(std::nullopt))
-        .WillOnce(Return(std::nullopt));
-    std::vector<asex_agent> kids = reproducer.reproduce(ctx);
-    EXPECT_EQ(kids.size(), 1u);
+TEST_F(AsexReproducerTest, ReturnsExactlyRSeedsWithSampledRands) {
+    EXPECT_CALL(sample_uniform, sample_uniform(256)).WillOnce(Return(1)).WillOnce(Return(2));
+    std::vector<asex_seed> seeds = reproducer.reproduce(progenitor);
+    ASSERT_EQ(seeds.size(), 2u);
+    EXPECT_EQ(seeds[0].progenitor.parent.pol.term, t);
+    EXPECT_EQ(seeds[0].index, 0u);
+    EXPECT_EQ(seeds[0].rand, 1u);
+    EXPECT_EQ(seeds[1].progenitor.parent.pol.term, t);
+    EXPECT_EQ(seeds[1].index, 1u);
+    EXPECT_EQ(seeds[1].rand, 2u);
 }

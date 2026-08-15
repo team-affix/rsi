@@ -1,32 +1,30 @@
 #ifndef SRF_ASEX_RUNTIME_HPP
 #define SRF_ASEX_RUNTIME_HPP
 
-#include "value_objects/population.hpp"
-
-template<typename Agent, typename IStep>
+template<typename IInitialize, typename IStep>
 struct srf_asex_runtime {
-    srf_asex_runtime(population<Agent>& pop, IStep& stepper);
+    srf_asex_runtime(IInitialize& initialize, IStep& step);
+    void initialize();
     void step();
-    const population<Agent>& get_population() const;
 private:
-    population<Agent>& pop_;
-    IStep& stepper_;
+    IInitialize& initialize_;
+    IStep& step_;
 };
 
-template<typename Agent, typename IStep>
-srf_asex_runtime<Agent, IStep>::srf_asex_runtime(population<Agent>& pop, IStep& stepper)
-    : pop_(pop)
-    , stepper_(stepper) {
+template<typename IInitialize, typename IStep>
+srf_asex_runtime<IInitialize, IStep>::srf_asex_runtime(IInitialize& initialize, IStep& step)
+    : initialize_(initialize)
+    , step_(step) {
 }
 
-template<typename Agent, typename IStep>
-void srf_asex_runtime<Agent, IStep>::step() {
-    pop_ = stepper_.step(pop_);
+template<typename IInitialize, typename IStep>
+void srf_asex_runtime<IInitialize, IStep>::initialize() {
+    initialize_.initialize();
 }
 
-template<typename Agent, typename IStep>
-const population<Agent>& srf_asex_runtime<Agent, IStep>::get_population() const {
-    return pop_;
+template<typename IInitialize, typename IStep>
+void srf_asex_runtime<IInitialize, IStep>::step() {
+    step_.step();
 }
 
 #endif

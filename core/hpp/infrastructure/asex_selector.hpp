@@ -3,55 +3,47 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <utility>
 #include <vector>
 #include "value_objects/asex_agent.hpp"
-#include "value_objects/asex_reproduction_context.hpp"
-#include "value_objects/population.hpp"
+#include "value_objects/asex_progenitor.hpp"
+#include "debug_assert.hpp"
 
-template<typename IEvaluate>
+template<typename IGetSize, typename IGetAgent, typename IEvaluate>
 struct asex_selector {
-    asex_selector(IEvaluate& evaluate, std::size_t g);
-    std::vector<asex_reproduction_context> select(const population<asex_agent>& pop);
+    asex_selector(IGetSize& get_size, IGetAgent& get_agent, IEvaluate& evaluate, std::size_t g);
+    std::vector<asex_progenitor> select();
 private:
-    struct scored_agent {
-        std::size_t index;
-        double score;
-    };
-    struct score_greater {
-        bool operator()(const scored_agent& a, const scored_agent& b) const;
-    };
+    IGetSize& get_size_;
+    IGetAgent& get_agent_;
     IEvaluate& evaluate_;
     std::size_t g_;
 };
 
-template<typename IEvaluate>
-bool asex_selector<IEvaluate>::score_greater::operator()(const scored_agent& a,
-                                                        const scored_agent& b) const {
-    if(a.score != b.score)
-        return a.score > b.score;
-    return a.index < b.index;
-}
-
-template<typename IEvaluate>
-asex_selector<IEvaluate>::asex_selector(IEvaluate& evaluate, std::size_t g)
-    : evaluate_(evaluate)
+template<typename IGetSize, typename IGetAgent, typename IEvaluate>
+asex_selector<IGetSize, IGetAgent, IEvaluate>::asex_selector(IGetSize& get_size,
+                                                            IGetAgent& get_agent,
+                                                            IEvaluate& evaluate, std::size_t g)
+    : get_size_(get_size)
+    , get_agent_(get_agent)
+    , evaluate_(evaluate)
     , g_(g) {
 }
 
-template<typename IEvaluate>
-std::vector<asex_reproduction_context>
-asex_selector<IEvaluate>::select(const population<asex_agent>& pop) {
-    std::vector<scored_agent> scored;
-    for(std::size_t i = 0; i < pop.agents.size(); ++i) {
-        double score = evaluate_.evaluate(pop.agents[i].pol);
-        scored.push_back(scored_agent{i, score});
+template<typename IGetSize, typename IGetAgent, typename IEvaluate>
+std::vector<asex_progenitor> asex_selector<IGetSize, IGetAgent, IEvaluate>::select() {
+    std::size_t n = get_size_.size();
+    DEBUG_ASSERT(n >= g_);
+    std::vector<std::pair<double, std::size_t>> scored;
+    for(std::size_t i = 0; i < n; ++i) {
+        const asex_agent& agent = get_agent_.get(i);
+        scored.push_back({-evaluate_.evaluate(agent.pol), i});
     }
-    std::sort(scored.begin(), scored.end(), score_greater{});
-    std::size_t take = scored.size() < g_ ? scored.size() : g_;
-    std::vector<asex_reproduction_context> contexts;
-    for(std::size_t i = 0; i < take; ++i)
-        contexts.push_back(asex_reproduction_context{pop.agents[scored[i].index]});
-    return contexts;
+    std::sort(scored.begin(), scored.end());
+    std::vector<asex_progenitor> result;
+    for(std::size_t i = 0; i < g_; ++i)
+        result.push_back(asex_progenitor{get_agent_.get(scored[i].second)});
+    return result;
 }
 
 #endif

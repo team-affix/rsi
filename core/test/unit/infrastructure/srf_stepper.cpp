@@ -1,84 +1,113 @@
 #include <memory>
+#include <optional>
 #include <vector>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "infrastructure/srf_stepper.hpp"
 #include "value_objects/asex_agent.hpp"
-#include "value_objects/asex_reproduction_context.hpp"
+#include "value_objects/asex_progenitor.hpp"
+#include "value_objects/asex_seed.hpp"
 #include "value_objects/expr.hpp"
-#include "value_objects/population.hpp"
 
 using ::testing::NiceMock;
 using ::testing::Return;
-using ::testing::StrictMock;
 
 struct MockSelect {
-    MOCK_METHOD((std::vector<asex_reproduction_context>), select,
-                (const population<asex_agent>&));
+    MOCK_METHOD((std::vector<asex_progenitor>), select, ());
 };
 
 struct MockReproduce {
-    MOCK_METHOD((std::vector<asex_agent>), reproduce, (const asex_reproduction_context&));
+    MOCK_METHOD((std::vector<asex_seed>), reproduce, (const asex_progenitor&));
+};
+
+struct MockGerminate {
+    MOCK_METHOD((std::optional<asex_agent>), germinate, (const asex_seed&));
 };
 
 struct MockProduceInitialAgent {
     MOCK_METHOD(asex_agent, produce, ());
 };
 
-using test_stepper_t = srf_stepper<asex_agent, asex_reproduction_context, MockSelect, MockReproduce,
-                                   MockProduceInitialAgent>;
+struct MockAddToBuffer {
+    MOCK_METHOD(void, add, (asex_agent));
+};
+
+struct MockAtCapacity {
+    MOCK_METHOD(bool, at_capacity, (), (const));
+};
+
+struct MockCommitBuffer {
+    MOCK_METHOD(void, commit, ());
+};
+
+using test_stepper_t =
+    srf_stepper<MockSelect, MockReproduce, MockGerminate, MockProduceInitialAgent, MockAddToBuffer,
+                MockAtCapacity, MockCommitBuffer>;
 
 struct SrfStepperTest : public ::testing::Test {
     NiceMock<MockSelect> select;
     NiceMock<MockReproduce> reproduce;
+    NiceMock<MockGerminate> germinate;
     NiceMock<MockProduceInitialAgent> produce;
-    test_stepper_t stepper{select, reproduce, produce};
+    NiceMock<MockAddToBuffer> add_to_buffer;
+    NiceMock<MockAtCapacity> at_capacity;
+    NiceMock<MockCommitBuffer> commit_buffer;
+    test_stepper_t stepper{select, reproduce, germinate, produce, add_to_buffer, at_capacity,
+                           commit_buffer};
     std::shared_ptr<expr> t = std::make_shared<expr>(expr{expr::var{0}});
     asex_agent agent{recursor{t}, policy{t}};
-    asex_reproduction_context ctx{agent};
+    asex_progenitor progenitor{agent};
+    asex_seed seed0{progenitor, 0, 1};
+    asex_seed seed1{progenitor, 1, 2};
 };
 
-TEST_F(SrfStepperTest, EmptyInProducesToCapacity) {
-    population<asex_agent> in{2};
-    EXPECT_CALL(select, select).WillOnce(Return(std::vector<asex_reproduction_context>{}));
+TEST_F(SrfStepperTest, EmptySelectHoleFillsThenCommits) {
+    ON_CALL(at_capacity, at_capacity()).WillByDefault(Return(true));
+    EXPECT_CALL(select, select()).WillOnce(Return(std::vector<asex_progenitor>{}));
+    EXPECT_CALL(at_capacity, at_capacity())
+        .WillOnce(Return(false))
+        .WillOnce(Return(false))
+        .WillOnce(Return(true));
     EXPECT_CALL(produce, produce()).WillOnce(Return(agent)).WillOnce(Return(agent));
-    population<asex_agent> out = stepper.step(in);
-    EXPECT_EQ(out.agents.size(), 2u);
-    EXPECT_EQ(out.capacity, 2u);
+    EXPECT_CALL(add_to_buffer, add(agent)).Times(2);
+    EXPECT_CALL(commit_buffer, commit());
+    stepper.step();
 }
 
-TEST_F(SrfStepperTest, ParentsNeverInOutput) {
-    std::shared_ptr<expr> tp = std::make_shared<expr>(expr{expr::var{1}});
+TEST_F(SrfStepperTest, GerminatesBothSeedsEvenIfFirstFails) {
     std::shared_ptr<expr> tc = std::make_shared<expr>(expr{expr::var{2}});
-    std::shared_ptr<expr> tf = std::make_shared<expr>(expr{expr::var{3}});
-    asex_agent parent{recursor{tp}, policy{tp}};
     asex_agent child{recursor{tc}, policy{tc}};
-    asex_agent filled{recursor{tf}, policy{tf}};
-    population<asex_agent> in{2};
-    in.agents.push_back(parent);
-    in.agents.push_back(parent);
-    asex_reproduction_context parent_ctx{parent};
-    EXPECT_CALL(select, select)
-        .WillOnce(Return(std::vector<asex_reproduction_context>{parent_ctx}));
-    EXPECT_CALL(reproduce, reproduce)
-        .WillOnce(Return(std::vector<asex_agent>{child}));
-    EXPECT_CALL(produce, produce()).WillOnce(Return(filled));
-    population<asex_agent> out = stepper.step(in);
-    EXPECT_EQ(out.agents.size(), 2u);
-    EXPECT_EQ(out.agents[0].rec.term, child.rec.term);
-    EXPECT_EQ(out.agents[1].rec.term, filled.rec.term);
+    ON_CALL(at_capacity, at_capacity()).WillByDefault(Return(true));
+    EXPECT_CALL(select, select()).WillOnce(Return(std::vector<asex_progenitor>{progenitor}));
+    EXPECT_CALL(at_capacity, at_capacity())
+        .WillOnce(Return(false))
+        .WillOnce(Return(false))
+        .WillOnce(Return(false))
+        .WillOnce(Return(true));
+    EXPECT_CALL(reproduce, reproduce(progenitor))
+        .WillOnce(Return(std::vector<asex_seed>{seed0, seed1}));
+    EXPECT_CALL(germinate, germinate(seed0)).WillOnce(Return(std::nullopt));
+    EXPECT_CALL(germinate, germinate(seed1)).WillOnce(Return(child));
+    EXPECT_CALL(add_to_buffer, add(child));
+    EXPECT_CALL(commit_buffer, commit());
+    stepper.step();
 }
 
-TEST_F(SrfStepperTest, StrictSelectReproduceProduceSequence) {
-    StrictMock<MockSelect> strict_select;
-    StrictMock<MockReproduce> strict_reproduce;
-    StrictMock<MockProduceInitialAgent> strict_produce;
-    test_stepper_t strict_stepper{strict_select, strict_reproduce, strict_produce};
-    population<asex_agent> in{1};
-    in.agents.push_back(agent);
-    EXPECT_CALL(strict_select, select)
-        .WillOnce(Return(std::vector<asex_reproduction_context>{ctx}));
-    EXPECT_CALL(strict_reproduce, reproduce).WillOnce(Return(std::vector<asex_agent>{agent}));
-    population<asex_agent> out = strict_stepper.step(in);
-    EXPECT_EQ(out.agents.size(), 1u);
+TEST_F(SrfStepperTest, UnviableSeedsHoleFill) {
+    ON_CALL(at_capacity, at_capacity()).WillByDefault(Return(true));
+    EXPECT_CALL(select, select()).WillOnce(Return(std::vector<asex_progenitor>{progenitor}));
+    EXPECT_CALL(at_capacity, at_capacity())
+        .WillOnce(Return(false))
+        .WillOnce(Return(false))
+        .WillOnce(Return(false))
+        .WillOnce(Return(false))
+        .WillOnce(Return(true));
+    EXPECT_CALL(reproduce, reproduce(progenitor))
+        .WillOnce(Return(std::vector<asex_seed>{seed0, seed1}));
+    EXPECT_CALL(germinate, germinate(seed0)).WillOnce(Return(std::nullopt));
+    EXPECT_CALL(germinate, germinate(seed1)).WillOnce(Return(std::nullopt));
+    EXPECT_CALL(produce, produce()).WillOnce(Return(agent));
+    EXPECT_CALL(add_to_buffer, add(agent));
+    EXPECT_CALL(commit_buffer, commit());
+    stepper.step();
 }
