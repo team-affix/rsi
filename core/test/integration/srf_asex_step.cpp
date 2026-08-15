@@ -123,7 +123,7 @@ TEST_F(SrfAsexStepIntegrationTest, OmegaLeavesHolesThenHoleFillRestoresN) {
     step_result result = stepper.step();
     EXPECT_EQ(pop.size(), 4u);
     EXPECT_EQ(result.best_reward, 1.0);
-    EXPECT_TRUE(exprs_eq(result.best_model.term, ch.make_false()));
+    EXPECT_TRUE(exprs_eq(result.best_policy.term, ch.make_false()));
     EXPECT_EQ(result.viable_seed_count, 0u);
 }
 
@@ -140,7 +140,7 @@ TEST_F(SrfAsexStepIntegrationTest, FlagRecursorChildrenReplaceParents) {
     step_result result = stepper.step();
     EXPECT_EQ(pop.size(), 4u);
     EXPECT_EQ(result.best_reward, 2.0);
-    EXPECT_TRUE(exprs_eq(result.best_model.term, ch.make_false()));
+    EXPECT_TRUE(exprs_eq(result.best_policy.term, ch.make_false()));
     EXPECT_EQ(result.viable_seed_count, 4u);
     EXPECT_FALSE(exprs_eq(pop.get(0).rec.term, flag_recursor.term));
     EXPECT_TRUE(exprs_eq(pop.get(0).rec.term, ch.make_true()));

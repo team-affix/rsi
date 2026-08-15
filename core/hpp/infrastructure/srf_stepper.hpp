@@ -61,7 +61,7 @@ step_result srf_stepper<ISelect, IReproduce, IGerminate, IProduceInitialAgent, I
     while(!at_capacity_.at_capacity())
         add_to_buffer_.add(produce_initial_agent_.produce());
     commit_buffer_.commit();
-    return step_result{selection.best_reward, selection.best_model, viable};
+    return step_result{selection.best_reward, selection.best_policy, viable};
 }
 
 #endif

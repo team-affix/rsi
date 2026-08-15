@@ -29,7 +29,7 @@ step_result best_tracking_stepper<IStep>::step() {
     step_result result = step_.step();
     if(result.best_reward > best_reward_) {
         best_reward_ = result.best_reward;
-        best_policy_ = result.best_model;
+        best_policy_ = result.best_policy;
     }
     return result;
 }

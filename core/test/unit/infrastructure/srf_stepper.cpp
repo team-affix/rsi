@@ -87,7 +87,7 @@ TEST_F(SrfStepperTest, EmptySelectHoleFillsThenCommits) {
     EXPECT_CALL(commit_buffer, commit());
     step_result result = stepper.step();
     EXPECT_EQ(result.best_reward, 4.0);
-    EXPECT_EQ(result.best_model.term, t);
+    EXPECT_EQ(result.best_policy.term, t);
     EXPECT_EQ(result.viable_seed_count, 0u);
     EXPECT_EQ(buffered_, cap_);
 }
@@ -104,7 +104,7 @@ TEST_F(SrfStepperTest, GerminatesBothSeedsEvenIfFirstFails) {
     EXPECT_CALL(commit_buffer, commit());
     step_result result = stepper.step();
     EXPECT_EQ(result.best_reward, 4.0);
-    EXPECT_EQ(result.best_model.term, t);
+    EXPECT_EQ(result.best_policy.term, t);
     EXPECT_EQ(result.viable_seed_count, 1u);
     EXPECT_EQ(buffered_, cap_);
 }
@@ -119,7 +119,7 @@ TEST_F(SrfStepperTest, UnviableSeedsHoleFill) {
     EXPECT_CALL(commit_buffer, commit());
     step_result result = stepper.step();
     EXPECT_EQ(result.best_reward, 4.0);
-    EXPECT_EQ(result.best_model.term, t);
+    EXPECT_EQ(result.best_policy.term, t);
     EXPECT_EQ(result.viable_seed_count, 0u);
     EXPECT_EQ(buffered_, cap_);
 }
@@ -137,7 +137,7 @@ TEST_F(SrfStepperTest, StopsMidSeedWhenAtCapacity) {
     EXPECT_CALL(commit_buffer, commit());
     step_result result = stepper.step();
     EXPECT_EQ(result.best_reward, 4.0);
-    EXPECT_EQ(result.best_model.term, t);
+    EXPECT_EQ(result.best_policy.term, t);
     EXPECT_EQ(result.viable_seed_count, 1u);
     EXPECT_EQ(buffered_, cap_);
 }
@@ -156,7 +156,7 @@ TEST_F(SrfStepperTest, StopsBetweenProgenitorsWhenAtCapacity) {
     EXPECT_CALL(commit_buffer, commit());
     step_result result = stepper.step();
     EXPECT_EQ(result.best_reward, 4.0);
-    EXPECT_EQ(result.best_model.term, t);
+    EXPECT_EQ(result.best_policy.term, t);
     EXPECT_EQ(result.viable_seed_count, 1u);
     EXPECT_EQ(buffered_, cap_);
 }
@@ -176,7 +176,7 @@ TEST_F(SrfStepperTest, AllViableFillsWithoutHoleFill) {
     EXPECT_CALL(commit_buffer, commit());
     step_result result = stepper.step();
     EXPECT_EQ(result.best_reward, 4.0);
-    EXPECT_EQ(result.best_model.term, t);
+    EXPECT_EQ(result.best_policy.term, t);
     EXPECT_EQ(result.viable_seed_count, 2u);
     EXPECT_EQ(buffered_, cap_);
 }
@@ -199,7 +199,7 @@ TEST_F(SrfStepperTest, TwoProgenitorsSumViableCounts) {
     EXPECT_CALL(commit_buffer, commit());
     step_result result = stepper.step();
     EXPECT_EQ(result.best_reward, 4.0);
-    EXPECT_EQ(result.best_model.term, t);
+    EXPECT_EQ(result.best_policy.term, t);
     EXPECT_EQ(result.viable_seed_count, 2u);
     EXPECT_EQ(buffered_, cap_);
 }

@@ -40,15 +40,15 @@ TEST_F(SrfAsexRuntimeIntegrationTest, StepReturnsDetailsAndTracksBest) {
     step_result first = runtime.step();
     EXPECT_EQ(first.best_reward, 1.0);
     EXPECT_EQ(runtime.best_reward(), 1.0);
-    EXPECT_EQ(runtime.best_policy().term, first.best_model.term);
+    EXPECT_EQ(runtime.best_policy().term, first.best_policy.term);
     ON_CALL(evaluate, evaluate).WillByDefault(Return(3.0));
     step_result second = runtime.step();
     EXPECT_EQ(second.best_reward, 3.0);
     EXPECT_EQ(runtime.best_reward(), 3.0);
-    EXPECT_EQ(runtime.best_policy().term, second.best_model.term);
+    EXPECT_EQ(runtime.best_policy().term, second.best_policy.term);
     ON_CALL(evaluate, evaluate).WillByDefault(Return(0.0));
     step_result third = runtime.step();
     EXPECT_EQ(third.best_reward, 0.0);
     EXPECT_EQ(runtime.best_reward(), 3.0);
-    EXPECT_EQ(runtime.best_policy().term, second.best_model.term);
+    EXPECT_EQ(runtime.best_policy().term, second.best_policy.term);
 }

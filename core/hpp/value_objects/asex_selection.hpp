@@ -8,7 +8,7 @@
 struct asex_selection {
     std::vector<asex_progenitor> progenitors;
     double best_reward;
-    policy best_model;
+    policy best_policy;
     auto operator<=>(const asex_selection&) const = default;
 };
 

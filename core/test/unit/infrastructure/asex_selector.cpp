@@ -54,5 +54,5 @@ TEST_F(AsexSelectorTest, ReturnsExactlyGProgenitorsBestFirst) {
     EXPECT_EQ(selection.progenitors[0].parent.pol.term, t1);
     EXPECT_EQ(selection.progenitors[1].parent.pol.term, t2);
     EXPECT_EQ(selection.best_reward, 3.0);
-    EXPECT_EQ(selection.best_model.term, t1);
+    EXPECT_EQ(selection.best_policy.term, t1);
 }

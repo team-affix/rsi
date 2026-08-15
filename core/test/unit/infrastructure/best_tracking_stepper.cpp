@@ -31,7 +31,7 @@ TEST_F(BestTrackingStepperTest, ForwardsInnerResult) {
     EXPECT_CALL(inner, step()).WillOnce(Return(step_result{1.5, p0, 7}));
     step_result result = tracker.step();
     EXPECT_EQ(result.best_reward, 1.5);
-    EXPECT_EQ(result.best_model.term, t0);
+    EXPECT_EQ(result.best_policy.term, t0);
     EXPECT_EQ(result.viable_seed_count, 7u);
 }
 
@@ -71,7 +71,7 @@ TEST_F(BestTrackingStepperTest, LowerRewardKeepsPriorBest) {
     tracker.step();
     step_result result = tracker.step();
     EXPECT_EQ(result.best_reward, 0.0);
-    EXPECT_EQ(result.best_model.term, t2);
+    EXPECT_EQ(result.best_policy.term, t2);
     EXPECT_EQ(tracker.best_reward(), 4.0);
     EXPECT_EQ(tracker.best_policy().term, t1);
 }

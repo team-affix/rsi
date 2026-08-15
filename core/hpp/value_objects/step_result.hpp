@@ -6,7 +6,7 @@
 
 struct step_result {
     double best_reward;
-    policy best_model;
+    policy best_policy;
     std::size_t viable_seed_count;
     auto operator<=>(const step_result&) const = default;
 };
