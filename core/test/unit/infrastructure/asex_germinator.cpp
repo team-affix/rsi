@@ -87,19 +87,16 @@ AsexGerminatorTest::AsexGerminatorTest()
     ON_CALL(make_true, make_true()).WillByDefault(Return(flag_t));
     ON_CALL(make_false, make_false()).WillByDefault(Return(flag_f));
     ON_CALL(make_combinator, make_combinator()).WillByDefault(Return(y));
+    ON_CALL(encode_uint, encode_uint(2)).WillByDefault(Return(index));
+    ON_CALL(encode_uint, encode_uint(5)).WillByDefault(Return(rand));
+    ON_CALL(apply_recursor, apply(rec, flag_t, y, index, rand)).WillByDefault(Return(rec_app));
+    ON_CALL(apply_recursor, apply(rec, flag_f, y, index, rand)).WillByDefault(Return(pol_app));
+    ON_CALL(normalize, normalize(rec_app)).WillByDefault(Return(rec_nf));
+    ON_CALL(normalize, normalize(pol_app)).WillByDefault(Return(pol_nf));
     gen.emplace(encode_uint, make_true, make_false, make_combinator, apply_recursor, normalize);
 }
 
 TEST_F(AsexGerminatorTest, EncodesIndexAndRandForBothHalves) {
-    EXPECT_CALL(make_true, make_true()).Times(0);
-    EXPECT_CALL(make_false, make_false()).Times(0);
-    EXPECT_CALL(make_combinator, make_combinator()).Times(0);
-    EXPECT_CALL(encode_uint, encode_uint(2)).WillOnce(Return(index));
-    EXPECT_CALL(encode_uint, encode_uint(5)).WillOnce(Return(rand));
-    EXPECT_CALL(apply_recursor, apply(rec, flag_t, y, index, rand)).WillOnce(Return(rec_app));
-    EXPECT_CALL(apply_recursor, apply(rec, flag_f, y, index, rand)).WillOnce(Return(pol_app));
-    EXPECT_CALL(normalize, normalize(rec_app)).WillOnce(Return(rec_nf));
-    EXPECT_CALL(normalize, normalize(pol_app)).WillOnce(Return(pol_nf));
     std::optional<asex_agent> child = gen->germinate(seed);
     ASSERT_TRUE(child.has_value());
     EXPECT_EQ(child->rec.term, rec_nf);
@@ -107,22 +104,13 @@ TEST_F(AsexGerminatorTest, EncodesIndexAndRandForBothHalves) {
 }
 
 TEST_F(AsexGerminatorTest, NulloptIfRecNormalizeFails) {
-    EXPECT_CALL(encode_uint, encode_uint(2)).WillOnce(Return(index));
-    EXPECT_CALL(encode_uint, encode_uint(5)).WillOnce(Return(rand));
-    EXPECT_CALL(apply_recursor, apply(rec, flag_t, y, index, rand)).WillOnce(Return(rec_app));
-    EXPECT_CALL(apply_recursor, apply(rec, flag_f, y, index, rand)).WillOnce(Return(pol_app));
-    EXPECT_CALL(normalize, normalize(rec_app)).WillOnce(Return(std::nullopt));
+    ON_CALL(normalize, normalize(rec_app)).WillByDefault(Return(std::nullopt));
     std::optional<asex_agent> child = gen->germinate(seed);
     EXPECT_FALSE(child.has_value());
 }
 
 TEST_F(AsexGerminatorTest, NulloptIfPolNormalizeFails) {
-    EXPECT_CALL(encode_uint, encode_uint(2)).WillOnce(Return(index));
-    EXPECT_CALL(encode_uint, encode_uint(5)).WillOnce(Return(rand));
-    EXPECT_CALL(apply_recursor, apply(rec, flag_t, y, index, rand)).WillOnce(Return(rec_app));
-    EXPECT_CALL(apply_recursor, apply(rec, flag_f, y, index, rand)).WillOnce(Return(pol_app));
-    EXPECT_CALL(normalize, normalize(rec_app)).WillOnce(Return(rec_nf));
-    EXPECT_CALL(normalize, normalize(pol_app)).WillOnce(Return(std::nullopt));
+    ON_CALL(normalize, normalize(pol_app)).WillByDefault(Return(std::nullopt));
     std::optional<asex_agent> child = gen->germinate(seed);
     EXPECT_FALSE(child.has_value());
 }

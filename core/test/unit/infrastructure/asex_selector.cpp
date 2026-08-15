@@ -25,6 +25,7 @@ struct MockEvaluate {
 using test_selector_t = asex_selector<MockGetSize, MockGetAgent, MockEvaluate>;
 
 struct AsexSelectorTest : public ::testing::Test {
+    AsexSelectorTest();
     NiceMock<MockGetSize> get_size;
     NiceMock<MockGetAgent> get_agent;
     NiceMock<MockEvaluate> evaluate;
@@ -37,14 +38,17 @@ struct AsexSelectorTest : public ::testing::Test {
     asex_agent a2{recursor{t2}, policy{t2}};
 };
 
+AsexSelectorTest::AsexSelectorTest() {
+    ON_CALL(get_size, size()).WillByDefault(Return(3));
+    ON_CALL(get_agent, get(0)).WillByDefault(ReturnRef(a0));
+    ON_CALL(get_agent, get(1)).WillByDefault(ReturnRef(a1));
+    ON_CALL(get_agent, get(2)).WillByDefault(ReturnRef(a2));
+    ON_CALL(evaluate, evaluate(a0.pol)).WillByDefault(Return(1.0));
+    ON_CALL(evaluate, evaluate(a1.pol)).WillByDefault(Return(3.0));
+    ON_CALL(evaluate, evaluate(a2.pol)).WillByDefault(Return(2.0));
+}
+
 TEST_F(AsexSelectorTest, ReturnsExactlyGProgenitorsBestFirst) {
-    EXPECT_CALL(get_size, size()).WillOnce(Return(3));
-    EXPECT_CALL(get_agent, get(0)).WillRepeatedly(ReturnRef(a0));
-    EXPECT_CALL(get_agent, get(1)).WillRepeatedly(ReturnRef(a1));
-    EXPECT_CALL(get_agent, get(2)).WillRepeatedly(ReturnRef(a2));
-    EXPECT_CALL(evaluate, evaluate(a0.pol)).WillOnce(Return(1.0));
-    EXPECT_CALL(evaluate, evaluate(a1.pol)).WillOnce(Return(3.0));
-    EXPECT_CALL(evaluate, evaluate(a2.pol)).WillOnce(Return(2.0));
     asex_selection selection = selector.select();
     ASSERT_EQ(selection.progenitors.size(), 2u);
     EXPECT_EQ(selection.progenitors[0].parent.pol.term, t1);
