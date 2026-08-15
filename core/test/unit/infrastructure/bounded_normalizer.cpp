@@ -50,6 +50,12 @@ TEST_F(BoundedNormalizerTest, NulloptWhenMaxStepsExceeded) {
     EXPECT_EQ(tight.normalize(term), std::nullopt);
 }
 
+TEST_F(BoundedNormalizerTest, NulloptWhenSpaceUsageEqualsMaxBytes) {
+    ON_CALL(runtime, space_usage()).WillByDefault(Return(100));
+    EXPECT_CALL(runtime, step()).Times(0);
+    EXPECT_EQ(normalizer.normalize(term), std::nullopt);
+}
+
 TEST_F(BoundedNormalizerTest, NulloptWhenMaxBytesExceeded) {
     ON_CALL(runtime, space_usage()).WillByDefault(Return(101));
     EXPECT_EQ(normalizer.normalize(term), std::nullopt);

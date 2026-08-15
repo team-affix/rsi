@@ -55,9 +55,7 @@ template<typename IMakeTrue, typename IMakeFalse, typename IMakeAbs, typename IM
 std::shared_ptr<expr>
 le_bitstring_encoder<IMakeTrue, IMakeFalse, IMakeAbs, IMakeApp, IMakeVar>::encode_uint(
     uint64_t n) {
-    if(n == 0)
-        return make_nil();
-    int msb = 63 - __builtin_clzll(n);
+    int msb = n == 0 ? -1 : 63 - __builtin_clzll(n);
     std::shared_ptr<expr> result = make_nil();
     for(int i = msb; i >= 0; --i) {
         std::shared_ptr<expr> bit = ((n >> i) & 1ULL) != 0 ? make_true_.make_true()

@@ -38,9 +38,54 @@ TEST_F(ChurchLeBitstringEncoderIntegrationTest, ZeroIsNil) {
     EXPECT_TRUE(exprs_eq(encoder.encode_uint(0), nil()));
 }
 
+TEST_F(ChurchLeBitstringEncoderIntegrationTest, OneIsConsTrueNil) {
+    std::shared_ptr<expr> expected = cons(church_true(), nil());
+    EXPECT_TRUE(exprs_eq(encoder.encode_uint(1), expected));
+}
+
+TEST_F(ChurchLeBitstringEncoderIntegrationTest, TwoIsFalseThenTrue) {
+    std::shared_ptr<expr> expected = cons(church_false(), cons(church_true(), nil()));
+    EXPECT_TRUE(exprs_eq(encoder.encode_uint(2), expected));
+}
+
+TEST_F(ChurchLeBitstringEncoderIntegrationTest, ThreeIsTrueTrue) {
+    std::shared_ptr<expr> expected = cons(church_true(), cons(church_true(), nil()));
+    EXPECT_TRUE(exprs_eq(encoder.encode_uint(3), expected));
+}
+
+TEST_F(ChurchLeBitstringEncoderIntegrationTest, FourIsFalseFalseTrue) {
+    std::shared_ptr<expr> expected =
+        cons(church_false(), cons(church_false(), cons(church_true(), nil())));
+    EXPECT_TRUE(exprs_eq(encoder.encode_uint(4), expected));
+}
+
 TEST_F(ChurchLeBitstringEncoderIntegrationTest, FiveIsLittleEndianScottList) {
     std::shared_ptr<expr> expected = cons(church_true(), cons(church_false(), cons(church_true(), nil())));
     EXPECT_TRUE(exprs_eq(encoder.encode_uint(5), expected));
+}
+
+TEST_F(ChurchLeBitstringEncoderIntegrationTest, SixIsFalseTrueTrue) {
+    std::shared_ptr<expr> expected =
+        cons(church_false(), cons(church_true(), cons(church_true(), nil())));
+    EXPECT_TRUE(exprs_eq(encoder.encode_uint(6), expected));
+}
+
+TEST_F(ChurchLeBitstringEncoderIntegrationTest, SevenIsTrueTrueTrue) {
+    std::shared_ptr<expr> expected =
+        cons(church_true(), cons(church_true(), cons(church_true(), nil())));
+    EXPECT_TRUE(exprs_eq(encoder.encode_uint(7), expected));
+}
+
+TEST_F(ChurchLeBitstringEncoderIntegrationTest, EightIsFalseFalseFalseTrue) {
+    std::shared_ptr<expr> expected = cons(church_false(),
+        cons(church_false(), cons(church_false(), cons(church_true(), nil()))));
+    EXPECT_TRUE(exprs_eq(encoder.encode_uint(8), expected));
+}
+
+TEST_F(ChurchLeBitstringEncoderIntegrationTest, NineIsTrueFalseFalseTrue) {
+    std::shared_ptr<expr> expected = cons(church_true(),
+        cons(church_false(), cons(church_false(), cons(church_true(), nil()))));
+    EXPECT_TRUE(exprs_eq(encoder.encode_uint(9), expected));
 }
 
 TEST_F(ChurchLeBitstringEncoderIntegrationTest, BitsAreChurchBools) {

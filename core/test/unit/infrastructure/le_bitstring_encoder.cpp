@@ -40,21 +40,60 @@ struct LeBitstringEncoderTest : public ::testing::Test {
     std::shared_ptr<expr> v0 = std::make_shared<expr>(expr{expr::var{0}});
     std::shared_ptr<expr> inner_nil = std::make_shared<expr>(expr{expr::abs{v0}});
     std::shared_ptr<expr> nil = std::make_shared<expr>(expr{expr::abs{inner_nil}});
+    std::shared_ptr<expr> bit_t = std::make_shared<expr>(expr{expr::var{2}});
+    std::shared_ptr<expr> bit_f = std::make_shared<expr>(expr{expr::var{3}});
+    std::shared_ptr<expr> v1 = std::make_shared<expr>(expr{expr::var{1}});
 };
 
 TEST_F(LeBitstringEncoderTest, ZeroIsNil) {
+    EXPECT_CALL(make_true, make_true()).Times(0);
+    EXPECT_CALL(make_false, make_false()).Times(0);
     EXPECT_CALL(make_var, make_var(0)).WillOnce(Return(v0));
     EXPECT_CALL(make_abs, make_abs(v0)).WillOnce(Return(inner_nil));
     EXPECT_CALL(make_abs, make_abs(inner_nil)).WillOnce(Return(nil));
     EXPECT_EQ(encoder.encode_uint(0), nil);
 }
 
-TEST_F(LeBitstringEncoderTest, FiveUsesTrueFalseTrueBits) {
-    std::shared_ptr<expr> dummy = std::make_shared<expr>(expr{expr::var{9}});
-    ON_CALL(make_var, make_var).WillByDefault(Return(dummy));
-    ON_CALL(make_abs, make_abs).WillByDefault(Return(dummy));
-    ON_CALL(make_app, make_app).WillByDefault(Return(dummy));
-    ON_CALL(make_true, make_true()).WillByDefault(Return(dummy));
-    ON_CALL(make_false, make_false()).WillByDefault(Return(dummy));
-    EXPECT_EQ(encoder.encode_uint(5), dummy);
+TEST_F(LeBitstringEncoderTest, OneIsConsTrueNil) {
+    std::shared_ptr<expr> app_c_t = std::make_shared<expr>(expr{expr::app{v1, bit_t}});
+    std::shared_ptr<expr> applied = std::make_shared<expr>(expr{expr::app{app_c_t, nil}});
+    std::shared_ptr<expr> inner_cons = std::make_shared<expr>(expr{expr::abs{applied}});
+    std::shared_ptr<expr> cons = std::make_shared<expr>(expr{expr::abs{inner_cons}});
+    EXPECT_CALL(make_false, make_false()).Times(0);
+    EXPECT_CALL(make_var, make_var(0)).WillOnce(Return(v0));
+    EXPECT_CALL(make_abs, make_abs(v0)).WillOnce(Return(inner_nil));
+    EXPECT_CALL(make_abs, make_abs(inner_nil)).WillOnce(Return(nil));
+    EXPECT_CALL(make_true, make_true()).WillOnce(Return(bit_t));
+    EXPECT_CALL(make_var, make_var(1)).WillOnce(Return(v1));
+    EXPECT_CALL(make_app, make_app(v1, bit_t)).WillOnce(Return(app_c_t));
+    EXPECT_CALL(make_app, make_app(app_c_t, nil)).WillOnce(Return(applied));
+    EXPECT_CALL(make_abs, make_abs(applied)).WillOnce(Return(inner_cons));
+    EXPECT_CALL(make_abs, make_abs(inner_cons)).WillOnce(Return(cons));
+    EXPECT_EQ(encoder.encode_uint(1), cons);
+}
+
+TEST_F(LeBitstringEncoderTest, TwoIsConsFalseConsTrueNil) {
+    std::shared_ptr<expr> app_c_t = std::make_shared<expr>(expr{expr::app{v1, bit_t}});
+    std::shared_ptr<expr> applied_t = std::make_shared<expr>(expr{expr::app{app_c_t, nil}});
+    std::shared_ptr<expr> inner_cons_t = std::make_shared<expr>(expr{expr::abs{applied_t}});
+    std::shared_ptr<expr> cons_t = std::make_shared<expr>(expr{expr::abs{inner_cons_t}});
+    std::shared_ptr<expr> app_c_f = std::make_shared<expr>(expr{expr::app{v1, bit_f}});
+    std::shared_ptr<expr> applied_f = std::make_shared<expr>(expr{expr::app{app_c_f, cons_t}});
+    std::shared_ptr<expr> inner_cons_f = std::make_shared<expr>(expr{expr::abs{applied_f}});
+    std::shared_ptr<expr> cons_f = std::make_shared<expr>(expr{expr::abs{inner_cons_f}});
+    EXPECT_CALL(make_var, make_var(0)).WillOnce(Return(v0));
+    EXPECT_CALL(make_abs, make_abs(v0)).WillOnce(Return(inner_nil));
+    EXPECT_CALL(make_abs, make_abs(inner_nil)).WillOnce(Return(nil));
+    EXPECT_CALL(make_true, make_true()).WillOnce(Return(bit_t));
+    EXPECT_CALL(make_var, make_var(1)).WillOnce(Return(v1)).WillOnce(Return(v1));
+    EXPECT_CALL(make_app, make_app(v1, bit_t)).WillOnce(Return(app_c_t));
+    EXPECT_CALL(make_app, make_app(app_c_t, nil)).WillOnce(Return(applied_t));
+    EXPECT_CALL(make_abs, make_abs(applied_t)).WillOnce(Return(inner_cons_t));
+    EXPECT_CALL(make_abs, make_abs(inner_cons_t)).WillOnce(Return(cons_t));
+    EXPECT_CALL(make_false, make_false()).WillOnce(Return(bit_f));
+    EXPECT_CALL(make_app, make_app(v1, bit_f)).WillOnce(Return(app_c_f));
+    EXPECT_CALL(make_app, make_app(app_c_f, cons_t)).WillOnce(Return(applied_f));
+    EXPECT_CALL(make_abs, make_abs(applied_f)).WillOnce(Return(inner_cons_f));
+    EXPECT_CALL(make_abs, make_abs(inner_cons_f)).WillOnce(Return(cons_f));
+    EXPECT_EQ(encoder.encode_uint(2), cons_f);
 }

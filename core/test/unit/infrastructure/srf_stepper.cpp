@@ -203,3 +203,20 @@ TEST_F(SrfStepperTest, TwoProgenitorsSumViableCounts) {
     EXPECT_EQ(result.viable_seed_count, 2u);
     EXPECT_EQ(buffered_, cap_);
 }
+
+TEST_F(SrfStepperTest, OneViableThenHoleFills) {
+    std::shared_ptr<expr> tc = std::make_shared<expr>(expr{expr::var{2}});
+    asex_agent child{recursor{tc}, policy{tc}};
+    cap_ = 2;
+    EXPECT_CALL(select, select()).WillOnce(Return(selection));
+    EXPECT_CALL(reproduce, reproduce(progenitor))
+        .WillOnce(Return(std::vector<asex_seed>{seed0, seed1}));
+    EXPECT_CALL(germinate, germinate(seed0)).WillOnce(Return(child));
+    EXPECT_CALL(germinate, germinate(seed1)).WillOnce(Return(std::nullopt));
+    EXPECT_CALL(commit_buffer, commit());
+    step_result result = stepper.step();
+    EXPECT_EQ(result.best_reward, 4.0);
+    EXPECT_EQ(result.best_policy.term, t);
+    EXPECT_EQ(result.viable_seed_count, 1u);
+    EXPECT_EQ(buffered_, cap_);
+}
