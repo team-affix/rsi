@@ -7,13 +7,15 @@
 #include "value_objects/asex_agent.hpp"
 #include "value_objects/asex_progenitor.hpp"
 #include "value_objects/asex_seed.hpp"
+#include "value_objects/asex_selection.hpp"
 #include "value_objects/expr.hpp"
+#include "value_objects/step_result.hpp"
 
 using ::testing::NiceMock;
 using ::testing::Return;
 
 struct MockSelect {
-    MOCK_METHOD((std::vector<asex_progenitor>), select, ());
+    MOCK_METHOD(asex_selection, select, ());
 };
 
 struct MockReproduce {
@@ -59,11 +61,12 @@ struct SrfStepperTest : public ::testing::Test {
     asex_progenitor progenitor{agent};
     asex_seed seed0{progenitor, 0, 1};
     asex_seed seed1{progenitor, 1, 2};
+    asex_selection selection{{progenitor}, 4.0, agent.pol};
 };
 
 TEST_F(SrfStepperTest, EmptySelectHoleFillsThenCommits) {
     ON_CALL(at_capacity, at_capacity()).WillByDefault(Return(true));
-    EXPECT_CALL(select, select()).WillOnce(Return(std::vector<asex_progenitor>{}));
+    EXPECT_CALL(select, select()).WillOnce(Return(asex_selection{{}, 4.0, agent.pol}));
     EXPECT_CALL(at_capacity, at_capacity())
         .WillOnce(Return(false))
         .WillOnce(Return(false))
@@ -71,14 +74,17 @@ TEST_F(SrfStepperTest, EmptySelectHoleFillsThenCommits) {
     EXPECT_CALL(produce, produce()).WillOnce(Return(agent)).WillOnce(Return(agent));
     EXPECT_CALL(add_to_buffer, add(agent)).Times(2);
     EXPECT_CALL(commit_buffer, commit());
-    stepper.step();
+    step_result result = stepper.step();
+    EXPECT_EQ(result.best_reward, 4.0);
+    EXPECT_EQ(result.best_model.term, t);
+    EXPECT_EQ(result.viable_seed_count, 0u);
 }
 
 TEST_F(SrfStepperTest, GerminatesBothSeedsEvenIfFirstFails) {
     std::shared_ptr<expr> tc = std::make_shared<expr>(expr{expr::var{2}});
     asex_agent child{recursor{tc}, policy{tc}};
     ON_CALL(at_capacity, at_capacity()).WillByDefault(Return(true));
-    EXPECT_CALL(select, select()).WillOnce(Return(std::vector<asex_progenitor>{progenitor}));
+    EXPECT_CALL(select, select()).WillOnce(Return(selection));
     EXPECT_CALL(at_capacity, at_capacity())
         .WillOnce(Return(false))
         .WillOnce(Return(false))
@@ -90,12 +96,15 @@ TEST_F(SrfStepperTest, GerminatesBothSeedsEvenIfFirstFails) {
     EXPECT_CALL(germinate, germinate(seed1)).WillOnce(Return(child));
     EXPECT_CALL(add_to_buffer, add(child));
     EXPECT_CALL(commit_buffer, commit());
-    stepper.step();
+    step_result result = stepper.step();
+    EXPECT_EQ(result.best_reward, 4.0);
+    EXPECT_EQ(result.best_model.term, t);
+    EXPECT_EQ(result.viable_seed_count, 1u);
 }
 
 TEST_F(SrfStepperTest, UnviableSeedsHoleFill) {
     ON_CALL(at_capacity, at_capacity()).WillByDefault(Return(true));
-    EXPECT_CALL(select, select()).WillOnce(Return(std::vector<asex_progenitor>{progenitor}));
+    EXPECT_CALL(select, select()).WillOnce(Return(selection));
     EXPECT_CALL(at_capacity, at_capacity())
         .WillOnce(Return(false))
         .WillOnce(Return(false))
@@ -109,5 +118,8 @@ TEST_F(SrfStepperTest, UnviableSeedsHoleFill) {
     EXPECT_CALL(produce, produce()).WillOnce(Return(agent));
     EXPECT_CALL(add_to_buffer, add(agent));
     EXPECT_CALL(commit_buffer, commit());
-    stepper.step();
+    step_result result = stepper.step();
+    EXPECT_EQ(result.best_reward, 4.0);
+    EXPECT_EQ(result.best_model.term, t);
+    EXPECT_EQ(result.viable_seed_count, 0u);
 }

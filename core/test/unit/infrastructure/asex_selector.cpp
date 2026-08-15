@@ -1,10 +1,9 @@
 #include <memory>
-#include <vector>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "infrastructure/asex_selector.hpp"
 #include "value_objects/asex_agent.hpp"
-#include "value_objects/asex_progenitor.hpp"
+#include "value_objects/asex_selection.hpp"
 #include "value_objects/expr.hpp"
 
 using ::testing::NiceMock;
@@ -46,8 +45,10 @@ TEST_F(AsexSelectorTest, ReturnsExactlyGProgenitorsBestFirst) {
     EXPECT_CALL(evaluate, evaluate(a0.pol)).WillOnce(Return(1.0));
     EXPECT_CALL(evaluate, evaluate(a1.pol)).WillOnce(Return(3.0));
     EXPECT_CALL(evaluate, evaluate(a2.pol)).WillOnce(Return(2.0));
-    std::vector<asex_progenitor> progenitors = selector.select();
-    ASSERT_EQ(progenitors.size(), 2u);
-    EXPECT_EQ(progenitors[0].parent.pol.term, t1);
-    EXPECT_EQ(progenitors[1].parent.pol.term, t2);
+    asex_selection selection = selector.select();
+    ASSERT_EQ(selection.progenitors.size(), 2u);
+    EXPECT_EQ(selection.progenitors[0].parent.pol.term, t1);
+    EXPECT_EQ(selection.progenitors[1].parent.pol.term, t2);
+    EXPECT_EQ(selection.best_reward, 3.0);
+    EXPECT_EQ(selection.best_model.term, t1);
 }

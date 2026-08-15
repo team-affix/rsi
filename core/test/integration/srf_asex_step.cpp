@@ -17,10 +17,12 @@
 #include "infrastructure/recursor_applicator.hpp"
 #include "infrastructure/srf_stepper.hpp"
 #include "infrastructure/y_combinator.hpp"
+#include "exprs_eq.hpp"
 #include "value_objects/asex_agent.hpp"
 #include "value_objects/expr.hpp"
 #include "value_objects/policy.hpp"
 #include "value_objects/recursor.hpp"
+#include "value_objects/step_result.hpp"
 
 using ::testing::NiceMock;
 using ::testing::Return;
@@ -118,6 +120,9 @@ TEST_F(SrfAsexStepIntegrationTest, OmegaLeavesHolesThenHoleFillRestoresN) {
     pop.add(omega_agent);
     pop.add(omega_agent);
     pop.add(omega_agent);
-    stepper.step();
+    step_result result = stepper.step();
     EXPECT_EQ(pop.size(), 4u);
+    EXPECT_EQ(result.best_reward, 1.0);
+    EXPECT_TRUE(exprs_eq(result.best_model.term, ch.make_false()));
+    EXPECT_EQ(result.viable_seed_count, 0u);
 }
